@@ -1,5 +1,6 @@
 package net.biyi.billingservice.feign;
 
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import net.biyi.billingservice.model.Customer;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
