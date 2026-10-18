@@ -2,13 +2,15 @@
 
 ## 1. Introduction
 
-Ce projet s'inscrit dans le cadre du développement d'une architecture logicielle moderne basée sur des **microservices** avec Java, Spring Boot et Spring Cloud. L'objectif principal est de concevoir un système e-commerce distribué, évolutif et tolérant aux pannes, permettant de gérer séparément les clients, les produits et la facturation.
+Ce projet s'inscrit dans le cadre du développement d'une architecture logicielle moderne basée sur des **microservices** avec Java, Spring Boot et Spring Cloud. L'objectif principal est de concevoir un système e-commerce distribué, évolutif, résilient et tolérant aux pannes, permettant de gérer de manière indépendante les clients, le catalogue de produits et la facturation.
 
-Les principales réalisations de cette première partie comprennent :
-- Le développement des services métiers de base (`Customer-Service` et `Inventory-Service`).
-- La mise en place de l'infrastructure des microservices avec l'annuaire de services (`Discovery-Service` / Eureka Server) et la passerelle d'API (`Spring Cloud Gateway`).
-- L'implémentation de la configuration statique et dynamique du système de routage.
-- Les tests et la validation de l'accès aux endpoints REST directement et à travers la Gateway.
+Les principales réalisations de ce projet comprennent :
+- Le développement des microservices métiers (`Customer-Service`, `Inventory-Service` et `Billing-Service`).
+- La mise en place de l'infrastructure centralisée comprenant l'annuaire de découverte (`Discovery-Service` / Eureka Server) et la passerelle d'accès unique (`Spring Cloud Gateway`).
+- La configuration du système de routage statique et dynamique à travers la Gateway.
+- L'établissement d'une communication inter-services synchrone et déclarative à l'aide de **Spring Cloud OpenFeign**.
+- L'implémentation des mécanismes de résilience et de tolérance aux pannes avec **Resilience4J** (Circuit Breaker et méthodes Fallback) pour éviter les pannes en cascade.
+- La validation globale de l'écosystème à travers des tests d'intégration et la consultation des endpoints REST via la Gateway.
 
 ---
 
@@ -99,5 +101,70 @@ Routage automatique en utilisant le nom du service enregistré dans le serveur d
 
 ---
 
-## 4. Conclusion
-Cette première partie a permis de valider la mise en place d'une architecture microservices robuste avec Spring Boot et Spring Cloud. La séparation des responsabilités métiers (`Customer` et `Inventory`), la découverte dynamique avec Eureka et la centralisation du routage par Spring Cloud Gateway constituent une fondation solide pour les développements futurs.
+## 4. Implémentation du Billing-Service & Communication OpenFeign (Port 8083)
+
+Le microservice **`Billing-Service`** est responsable de la gestion des factures (`Bill`) et des articles facturés (`ProductItem`). Il communique de manière transparente avec `Customer-Service` et `Inventory-Service` grâce à des clients déclaratifs **OpenFeign**.
+
+---
+
+### A. Architecture globale du système avec Billing-Service
+L'architecture intègre désormais le `Billing-Service` interconnecté avec les bases de données et le Config Server centralisé :
+
+![Architecture globale avec Billing Service](./images/img13.png)
+
+---
+
+### B. Persistance des Factures et des Éléments Facturés (Base de données H2 - Port 8083)
+
+- **Table BILL** :
+  Affichage des factures générées associées aux identifiants clients (`CUSTOMER_ID`).
+
+  ![Table BILL H2](./images/img14.png)
+
+- **Table PRODUCT_ITEM** :
+  Affichage des lignes de facturation contenant la quantité, le prix calculé, l'ID de la facture (`BILL_ID`) et l'ID du produit (`PRODUCT_ID`).
+
+  ![Table PRODUCT_ITEM H2](./images/img15.png)
+
+---
+
+### C. Validation de l'API Billing-Service
+
+- **Consulter une facture complète (GET /api/bills/1 - Directement sur Port 8083)** :
+  L'API réclame les données relatives au client (ID 1) et aux produits associés via OpenFeign pour reconstituer l'objet JSON complet.
+
+  ![Consultation facture 1 direct](./images/img16.png)
+
+- **Consulter une facture via la Gateway (GET `http://localhost:8888/BILLING-SERVICE/api/bills/1`)** :
+  Accès centralisé à la facture complète à travers la passerelle Spring Cloud Gateway.
+
+  ![Consultation facture via Gateway](./images/img17.png)
+
+---
+
+## 5. Tolérance aux Pannes et Résilience avec Resilience4J
+
+Pour éviter l'effet de cascade en cas de panne d'un microservice tiers (`Customer-Service` ou `Inventory-Service`), nous avons protégé les appels OpenFeign en utilisant l'annotation `@CircuitBreaker` de **Resilience4J** :
+
+- **Cas de panne du Customer-Service** :
+  ![Pour customer](./images/img18.png)
+
+- **Cas de panne du Inventory-Service** :
+  ![pour product](./images/img19.png)
+
+### Code d'implémentation du Circuit Breaker :
+
+```java
+@CircuitBreaker(name = "customer-service", fallbackMethod = "getDefaultCustomer")
+public Customer getCustomer(Long id);
+
+@CircuitBreaker(name = "inventory-service", fallbackMethod = "getDefaultProduct")
+public Product getProduct(Long id);
+````
+## 6. Conclusion
+
+Ce projet a permis de valider avec succès la mise en place d'une architecture distribuée complète et robuste basée sur l'écosystème **Spring Boot** et **Spring Cloud**.
+
+La séparation stricte des responsabilités métiers (`Customer-Service`, `Inventory-Service` et `Billing-Service`), associée au registre de découverte **Eureka** et à la passerelle **Spring Cloud Gateway**, garantit une grande extensibilité et une centralisation efficace du routage.
+
+De plus, l'utilisation de **Spring Cloud OpenFeign** a simplifié la communication inter-services, tandis que l'intégration des Circuit Breakers avec **Resilience4J** a permis d'assurer la haute disponibilité du système grâce à des réponses dégradées (*Fallback*) en cas d'indisponibilité d'un composant. L'ensemble de cette infrastructure constitue une base solide, moderne et prête pour un déploiement en environnement de production.
