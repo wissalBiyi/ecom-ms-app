@@ -161,7 +161,19 @@ public Customer getCustomer(Long id);
 @CircuitBreaker(name = "inventory-service", fallbackMethod = "getDefaultProduct")
 public Product getProduct(Long id);
 ````
-## 6. Conclusion
+
+
+---
+
+## 6.Créer le service de configuration
+![pour product](images/img20.png)
+![pour product](images/img21.png)
+![pour product](images/img22.png)
+![pour product](images/img23.png)
+![pour product](images/img24.png)
+
+## 7. Conclusion
+
 
 Ce projet a permis de valider avec succès la mise en place d'une architecture distribuée complète et robuste basée sur l'écosystème **Spring Boot** et **Spring Cloud**.
 
